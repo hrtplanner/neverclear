@@ -79,3 +79,5 @@ const role = Role.new("Administrator");
 
 console.log(role); // "Administrator"
 ```
+
+*This horrible code made me cry, too*
