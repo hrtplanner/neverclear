@@ -25,8 +25,10 @@ function isValidType(value: Type & { [key: string]: any }): boolean {
 }
 
 function typeObtainValue(value: Type & { [key: string]: any }): { type: string, value: any } {
+    console.log(value);
     if (!isValidType(value)) {
-        consoleApplied.error('Invalid type');
+        let invalidProperties = Object.keys(value).filter(key => !Object.keys(typeLabelMap).includes(key));
+        consoleApplied.error('Invalid type', typeof value, invalidProperties);
         throw new Error('Invalid type');
     }
 
@@ -102,15 +104,12 @@ export function array(type: Type, validators: Validator[] = []): Type {
     };
 }
 
-export function tuple(length: number, ...types: [Type, Validator[]][]): Type {
-    if (length !== types.length) {
-        consoleApplied.error('Invalid tuple length', length, types.length);
-        throw new Error('Invalid tuple length');
-    }
+export function tuple(length: number, validators: Validator[], types: [Type, Validator[]][]): Type {
     return {
         tuple: {
-            tuple: types,
+            tuple: types.map(x => ({ types: x[0], validators: x[1] })),
             length,
+            validators: validators || []
         }
     }
 }
@@ -213,20 +212,35 @@ function validateTuple<T>(value: T, tyValue: Tuple): T {
         throw new Error('Invalid tuple');
     }
 
-    if (value.length !== tyValue.length) {
-        consoleApplied.error('Invalid tuple length', value.length, tyValue.length);
-        throw new Error('Invalid tuple length');
-    }
-
     if (tyValue.tuple.length === 0) {
         consoleApplied.error('Forged tuple', 'Empty tuple', value);
         throw new Error('Empty tuple');
     }
 
-    for (let i = 0; i < value.length; i++) {
-        t(tyValue.tuple[i][0]).new(value[i]);
+    let i = 0;
+    for (const tye of tyValue.tuple) {
 
-        for (const [type, error] of tyValue.tuple[i][1]) {
+        for (const [tx, error] of tye.validators) {
+            if (!tx(value)) {
+                consoleApplied.error(error, value[i]);
+                throw new Error(error);
+            }
+        }
+        i++;
+    }
+
+    for (const [type, error] of tyValue.validators) {
+        if (!type(value)) {
+            consoleApplied.error(error, value);
+            throw new Error(error);
+        }
+    }
+
+    // Confirm types globally apply across the tuple
+    for (let i = 0; i < value.length; i++) {
+        t(tyValue.tuple[i].types).new(value[i]);
+
+        for (const [type, error] of tyValue.tuple[i].validators) {
             if (!type(value[i])) {
                 consoleApplied.error(error, value[i]);
                 throw new Error(error);

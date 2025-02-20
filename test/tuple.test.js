@@ -1,6 +1,7 @@
 import { doesNotThrow, throws } from 'assert';
-import { t, enumerable, tuple } from '../src';
+import { t, enumerable, tuple, oneOf } from '../src';
 import { validator, literal, value } from '../src/types';
+import { Seq } from '../src/validators';
 
 import { it, describe, beforeAll } from "bun:test";
 import { applyLogger } from './common';
@@ -12,24 +13,27 @@ describe("Tuples", () => {
         const HelloWorld = t(
             tuple(
                 2,
-                value(
-                    literal("Hello")
-                ),
-                value(
-                    enumerable(
-                        "Hello",
-                        "World",
-                        "I",
-                        "Am",
-                        "Here"
+                [],
+                [
+                    value(
+                        literal("Hello")
                     ),
-                    [
-                        validator(
-                            (value) => value !== "I",
-                            "Value must not be 'I'"
-                        )
-                    ]
-                )
+                    value(
+                        enumerable(
+                            "Hello",
+                            "World",
+                            "I",
+                            "Am",
+                            "Here"
+                        ),
+                        [
+                            validator(
+                                (value) => value !== "I",
+                                "Value must not be 'I'"
+                            )
+                        ]
+                    )
+                ]
             )
         );
 
@@ -42,22 +46,60 @@ describe("Tuples", () => {
         const HelloWorld = t(
             tuple(
                 2,
-                value(
-                    literal("Hello")
-                ),
-                value(
-                    enumerable(
-                        "Hello",
-                        "World",
-                        "I",
-                        "Am",
-                        "Here"
+                [],
+                [
+                    value(
+                        literal("Hello")
+                    ),
+                    value(
+                        enumerable(
+                            "Hello",
+                            "World",
+                            "I",
+                            "Am",
+                            "Here"
+                        )
                     )
-                )
+                ]
             )
         );
 
         doesNotThrow(() => HelloWorld.new(
+            ["Hello", "World"]
+        ));
+    });
+
+    it("Should work with Tuple Seq validators", () => {
+        const of = [
+            value(
+                literal("Hello")
+            ),
+            value(
+                enumerable(
+                    "Hello",
+                    "World",
+                    "I",
+                    "Am",
+                    "Here"
+                )
+            )
+        ];
+
+        const Sequence = t(
+            tuple(
+                1,
+                [
+                    Seq(...of)
+                ],
+                [
+                    value(
+                        oneOf(...of)
+                    )
+                ]
+            )
+        );
+
+        doesNotThrow(() => Sequence.new(
             ["Hello", "World"]
         ));
     });
