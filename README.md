@@ -64,7 +64,7 @@ console.log(person); // { name: "John Doe", age: 25, email: "hello@example.arpa"
 
 ### Enums
 ```js
-import { t, enum } from 'neverclear';
+import { t, enumerable } from 'neverclear';
 import { applyTraits, EnumTrait } from '../src/traits';
 
 const Role = applyTraits(EnumTrait)(t(

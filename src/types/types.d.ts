@@ -34,7 +34,7 @@ export interface OneOf {
 }
 
 export interface Tuple {
-    tuple: { types: Type, validators: Validator[] }[],
+    values: [Type, Validator[]][];
     length: number;
     validators: Validator[];
 }

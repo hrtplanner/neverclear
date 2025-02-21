@@ -25,9 +25,8 @@ function isValidType(value: Type & { [key: string]: any }): boolean {
 }
 
 function typeObtainValue(value: Type & { [key: string]: any }): { type: string, value: any } {
-    console.log(value);
     if (!isValidType(value)) {
-        let invalidProperties = Object.keys(value).filter(key => !Object.keys(typeLabelMap).includes(key));
+        const invalidProperties = Object.keys(value).filter(key => !Object.keys(typeLabelMap).includes(key));
         consoleApplied.error('Invalid type', typeof value, invalidProperties);
         throw new Error('Invalid type');
     }
@@ -44,15 +43,17 @@ function typeObtainValue(value: Type & { [key: string]: any }): { type: string, 
     throw new Error('Invalid type');
 }
 
-export function oneOf(...types: [Type, Validator[]][]): OneOf {
+export function oneOf(...types: [Type, Validator[]][]): Type {
     if (types.length === 0) {
         consoleApplied.error('Empty oneOf');
         throw new Error('Empty oneOf');
     }
     
     return {
-        types: types.map(([type]) => type),
-        validators: types.flatMap(([_, validators]) => validators || [])
+        oneOf: {
+            types: types.map(([type]) => type),
+            validators: types.flatMap(([, validators]) => validators || [])
+        }
     };
 }
 
@@ -90,7 +91,7 @@ export function struct(...properties: [string, Type, Validator[]][]): Type {
     return {
         struct: {
             properties: properties.map(([name, type]) => [name, type]),
-            validators: properties.map(([name, _, validators]) => [name, validators || []])
+            validators: properties.map(([name, , validators]) => [name, validators || []])
         }
     };
 }
@@ -104,11 +105,11 @@ export function array(type: Type, validators: Validator[] = []): Type {
     };
 }
 
-export function tuple(length: number, validators: Validator[], types: [Type, Validator[]][]): Type {
+export function tuple(types: [Type, Validator[]][], validators: Validator[]): Type {
     return {
         tuple: {
-            tuple: types.map(x => ({ types: x[0], validators: x[1] })),
-            length,
+            values: types,
+            length: types.length,
             validators: validators || []
         }
     }
@@ -145,6 +146,10 @@ export function t(arg: Type): { new: <T>(value: T) => T, type: Type } {
             case TypeLabel.InternalType:
                 return validateInternalType(value, ty.value);
             case TypeLabel.Tuple:
+                if (!Array.isArray(value)) {
+                    consoleApplied.error('Invalid tuple', value);
+                    throw new Error('Invalid tuple');
+                }
                 return validateTuple(value, ty.value);
             case TypeLabel.Struct:
                 return validateStruct(value, ty.value);
@@ -206,45 +211,49 @@ function validateInternalType<T>(value: T, [internalType, validators]: [Internal
     return value;
 }
 
-function validateTuple<T>(value: T, tyValue: Tuple): T {
+function validateTuple<T extends any[][]>(value: T, tyValue: Tuple): T {
     if (!Array.isArray(value)) {
         consoleApplied.error('Invalid tuple', value);
         throw new Error('Invalid tuple');
     }
 
-    if (tyValue.tuple.length === 0) {
+    if (tyValue.values.length === 0) {
         consoleApplied.error('Forged tuple', 'Empty tuple', value);
         throw new Error('Empty tuple');
     }
 
-    let i = 0;
-    for (const tye of tyValue.tuple) {
+    for (const i in value) {
+        const tv = value[i];
 
-        for (const [tx, error] of tye.validators) {
-            if (!tx(value)) {
-                consoleApplied.error(error, value[i]);
-                throw new Error(error);
+        if (!Array.isArray(tv)) {
+            consoleApplied.error('Invalid tuple value', tv);
+            throw new Error('Invalid tuple value');
+        }
+        if (tyValue.length === 0) {
+            consoleApplied.error('Forged tuple', 'Empty tuple value', tv);
+            throw new Error('Empty tuple value');
+        }
+        if (tv.length !== tyValue.length) {
+            consoleApplied.error('Invalid tuple value', tv);
+            throw new Error('Invalid tuple value');
+        }
+
+        for (let i = 0; i < tyValue.length; i++) {
+            t(tyValue.values[i][0]).new(tv[i]);
+
+            for (const [validator, error] of tyValue.values[i][1]) {
+                if (!validator(tv[i])) {
+                    consoleApplied.error(error, tv);
+                    throw new Error(error);
+                }
             }
         }
-        i++;
     }
 
-    for (const [type, error] of tyValue.validators) {
-        if (!type(value)) {
+    for (const [validator, error] of tyValue.validators) {
+        if (!validator(value)) {
             consoleApplied.error(error, value);
             throw new Error(error);
-        }
-    }
-
-    // Confirm types globally apply across the tuple
-    for (let i = 0; i < value.length; i++) {
-        t(tyValue.tuple[i].types).new(value[i]);
-
-        for (const [type, error] of tyValue.tuple[i].validators) {
-            if (!type(value[i])) {
-                consoleApplied.error(error, value[i]);
-                throw new Error(error);
-            }
         }
     }
 
@@ -357,7 +366,7 @@ function validateOneOf<T>(value: T, tyValue: OneOf): T {
                 }
             }
             return value;
-        } catch (e) {
+        } catch {
             continue;
         }
     }

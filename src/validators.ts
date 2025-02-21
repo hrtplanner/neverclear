@@ -1,4 +1,4 @@
-import { array, t } from ".";
+import { t } from ".";
 import { Type, Validator, ValidatorFunction } from "./types/types";
 
 /**
@@ -47,18 +47,26 @@ const RegEx: ValidatorFunction<RegExp> = (regex): Validator => {
  */
 const Seq: ValidatorFunction<[Type, Validator[]]> = (...types: [Type, Validator[]][]): Validator => {
     return [
-        <T>(value: Array<T>): boolean => {
+        (value: Array<any>): boolean => {
             if (!Array.isArray(value)) {
                 return false;
             }
 
-            for (let i = 0; i < value.length; i++) {
-                try {
-                    const Type = t(types[i][0]);
-                    Type.new(value[i]);
+            if (value.length !== types.length) {
+                return false;
+            }
 
-                    for (let j = 0; j < types[i][1].length; j++) {
-                        if (!types[i][1][j][0](value[i])) {
+            for (let i = 0; i < value.length; i++) {
+                let unraveled: Array<any> = value[i];
+                if (unraveled.length === 1) {
+                    unraveled = unraveled[0];
+                }
+
+                try {
+                    t(types[i][0]).new(unraveled);
+
+                    for (const validator of types[i][1]) {
+                        if (!validator[0](unraveled)) {
                             return false;
                         }
                     }

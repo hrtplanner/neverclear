@@ -10,13 +10,13 @@ beforeAll(applyLogger);
 
 describe("Tuples", () => {
     it("Should work with validators (throws on invalid value)", () => {
+        console.trace();
+
         const HelloWorld = t(
             tuple(
-                2,
-                [],
                 [
                     value(
-                        literal("Hello")
+                        literal("Hello1")
                     ),
                     value(
                         enumerable(
@@ -33,23 +33,22 @@ describe("Tuples", () => {
                             )
                         ]
                     )
-                ]
+                ],
+                []
             )
         );
 
-        throws(() => HelloWorld.new(
-            ["Hello", "I"]
-        ));
+        throws(() => HelloWorld.new([
+            ["Hello1", "I"]
+        ]));
     });
 
     it("Should work without validators", () => {
         const HelloWorld = t(
             tuple(
-                2,
-                [],
                 [
                     value(
-                        literal("Hello")
+                        literal("Hello2")
                     ),
                     value(
                         enumerable(
@@ -60,19 +59,20 @@ describe("Tuples", () => {
                             "Here"
                         )
                     )
-                ]
+                ],
+                []
             )
         );
 
-        doesNotThrow(() => HelloWorld.new(
-            ["Hello", "World"]
-        ));
+        doesNotThrow(() => HelloWorld.new([
+            ["Hello2", "World"]
+        ]));
     });
 
     it("Should work with Tuple Seq validators", () => {
         const of = [
             value(
-                literal("Hello")
+                literal("Hello3")
             ),
             value(
                 enumerable(
@@ -87,20 +87,25 @@ describe("Tuples", () => {
 
         const Sequence = t(
             tuple(
-                1,
-                [
-                    Seq(...of)
-                ],
                 [
                     value(
                         oneOf(...of)
                     )
+                ],
+                [
+                    Seq(...of)
                 ]
             )
         );
 
-        doesNotThrow(() => Sequence.new(
-            ["Hello", "World"]
-        ));
+        doesNotThrow(() => Sequence.new([
+            ["Hello3"],
+            ["World"]
+        ]));
+
+        throws(() => Sequence.new([
+            ["Hello3"],
+            ["World", "Hello3"]
+        ]));
     });
 });
